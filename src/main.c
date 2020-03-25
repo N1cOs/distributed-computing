@@ -160,9 +160,9 @@ int main(int argc, char* argv[]) {
 
   int status = 0;
   for (local_id i = 1; i < procs; i++) {
-    int RCV_ALL_OK;
-    wait(&RCV_ALL_OK);
-    status |= RCV_ALL_OK;
+    int ok;
+    wait(&ok);
+    status |= ok;
   }
   return status;
 }
