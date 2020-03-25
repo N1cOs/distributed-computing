@@ -13,7 +13,7 @@ char* build_msg(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
-  size_t size = vsnprintf(NULL, 0, fmt, args);
+  int size = vsnprintf(NULL, 0, fmt, args);
   if (size < 0) {
     return NULL;
   }
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
   }
   procs++;
 
-  FILE* eventsf = fopen(events_log, "w");
+  FILE* eventsf = fopen(events_log, "a");
   if (eventsf == NULL) {
     fprintf(stderr, "%s: %s: %s\n", argv[0], "fopen", strerror(errno));
     return EXIT_FAILURE;
