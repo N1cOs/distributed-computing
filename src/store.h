@@ -14,7 +14,7 @@ Store* new_store(uint16_t procs);
 
 Chan* get_chan(Store* store, local_id src, local_id dst);
 
-int close_unnes_chans(Store* store, local_id left);
+void close_unnes_chans(Store* store, local_id left);
 
 uint16_t get_procs(Store* store);
 

@@ -30,17 +30,22 @@ Chan* get_chan(Store* store, local_id src, local_id dst) {
   return &table->data[src][dst];
 }
 
-int close_unnes_chans(Store* store, local_id left) {
-  int status = 0;
+void close_unnes_chans(Store* store, local_id left) {
   ChanTable* table = store->table;
   for (uint16_t src = 0; src < table->height; src++) {
-    for (uint16_t dst = 0; dst < table->width && src != left; dst++) {
-      if (src != dst && left != dst) {
-        status |= close_chan(&table->data[src][dst]);
+    for (uint16_t dst = 0; dst < table->width; dst++) {
+      if (src != dst) {
+        Chan* chan = &table->data[src][dst];
+        if (left == src) {
+          close(chan->rfd);
+        } else if (left == dst) {
+          close(chan->wfd);
+        } else {
+          close_chan(chan);
+        }
       }
     }
   }
-  return status;
 }
 
 uint16_t get_procs(Store* store) { return store->table->width; }
