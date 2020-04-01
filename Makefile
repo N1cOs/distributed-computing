@@ -26,6 +26,7 @@ OUT = $(BIN)/$(PA)
 
 .PHONY: build
 build:
+	mkdir --parents $(BIN)
 	$(CC) -Wall \
 		--pedantic \
 		--output $(OUT) \
@@ -41,7 +42,7 @@ run:
 VALGRIND = valgrind
 
 .PHONY: memcheck
-memcheck:
+memcheck: build
 	$(VALGRIND) --leak-check=yes $(OUT) $(ARGS)
 
 
