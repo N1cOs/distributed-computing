@@ -2,10 +2,11 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "banking.h"
 #include "common.h"
 #include "ipc_client.h"
 #include "log.h"
-#include "pa1.h"
+#include "pa2345.h"
 
 #define MAX_PROCS 10
 
