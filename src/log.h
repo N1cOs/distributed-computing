@@ -14,7 +14,7 @@ typedef struct {
 
 Log *new_log(uint32_t fn, ...);
 
-int flog(Log *log, const char *const fmt, ...);
+int logfmt(Log *log, const char *const fmt, ...);
 
 void free_log(Log *log);
 

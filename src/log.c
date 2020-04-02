@@ -20,7 +20,7 @@ void free_log(Log *log) {
   free(log);
 }
 
-int flog(Log *log, const char *const fmt, ...) {
+int logfmt(Log *log, const char *const fmt, ...) {
   va_list args;
   for (uint8_t i = 0; i < log->fn; i++) {
     FILE *f = log->fs[i];

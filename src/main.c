@@ -32,7 +32,7 @@ int execute_child(IpcClient* client, Log* log) {
   init_client(client);
 
   char* start_msg = build_msg(log_started_fmt, client->id, getpid(), getppid());
-  flog(log, start_msg);
+  logfmt(log, start_msg);
 
   MessageHeader header = {MESSAGE_MAGIC, strlen(start_msg), STARTED, 0};
   Message msg = {header};
@@ -52,10 +52,10 @@ int execute_child(IpcClient* client, Log* log) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_started_fmt, client->id);
+  logfmt(log, log_received_all_started_fmt, client->id);
 
   char* done_msg = build_msg(log_done_fmt, client->id);
-  flog(log, done_msg);
+  logfmt(log, done_msg);
 
   header.s_payload_len = strlen(done_msg);
   header.s_type = DONE;
@@ -75,7 +75,7 @@ int execute_child(IpcClient* client, Log* log) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_done_fmt, client->id);
+  logfmt(log, log_received_all_done_fmt, client->id);
 
   return EXIT_SUCCESS;
 }
@@ -145,14 +145,14 @@ int main(int argc, char* argv[]) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_started_fmt, client.id);
+  logfmt(log, log_received_all_started_fmt, client.id);
 
   if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
     fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_done_fmt, client.id);
+  logfmt(log, log_received_all_done_fmt, client.id);
 
   free_store(store);
   free_log(log);
