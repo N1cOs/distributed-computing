@@ -3,9 +3,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "common.h"
+#include "ipc_client.h"
 #include "log.h"
 #include "pa1.h"
-#include "proc.h"
 
 #define MAX_PROCS 10
 
@@ -28,33 +28,33 @@ char* build_msg(const char* fmt, ...) {
   return str;
 }
 
-int execute_child(Proc* proc, Log* log) {
-  init_proc(proc);
+int execute_child(IpcClient* client, Log* log) {
+  init_client(client);
 
-  char* start_msg = build_msg(log_started_fmt, proc->id, getpid(), getppid());
+  char* start_msg = build_msg(log_started_fmt, client->id, getpid(), getppid());
   flog(log, start_msg);
 
   MessageHeader header = {MESSAGE_MAGIC, strlen(start_msg), STARTED, 0};
   Message msg = {header};
   strcpy(msg.s_payload, start_msg);
 
-  if (send_multicast(proc, &msg) != 0) {
-    fprintf(stderr, "error: process %1d: %s: %s\n", proc->id, "send_multicast",
-            "start");
+  if (send_multicast(client, &msg) != 0) {
+    fprintf(stderr, "error: process %1d: %s: %s\n", client->id,
+            "send_multicast", "start");
     free(start_msg);
     return EXIT_FAILURE;
   }
   free(start_msg);
 
   ReceiveAllError err;
-  if ((err = receive_from_all(proc, STARTED)) != RCV_ALL_OK) {
-    fprintf(stderr, "error: process %1d: %s\n", proc->id,
+  if ((err = receive_from_all(client, STARTED)) != RCV_ALL_OK) {
+    fprintf(stderr, "error: process %1d: %s\n", client->id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_started_fmt, proc->id);
+  flog(log, log_received_all_started_fmt, client->id);
 
-  char* done_msg = build_msg(log_done_fmt, proc->id);
+  char* done_msg = build_msg(log_done_fmt, client->id);
   flog(log, done_msg);
 
   header.s_payload_len = strlen(done_msg);
@@ -62,20 +62,20 @@ int execute_child(Proc* proc, Log* log) {
   msg.s_header = header;
   strcpy(msg.s_payload, done_msg);
 
-  if (send_multicast(proc, &msg) != 0) {
-    fprintf(stderr, "error: process %1d: %s: %s\n", proc->id, "send_multicast",
-            "done");
+  if (send_multicast(client, &msg) != 0) {
+    fprintf(stderr, "error: process %1d: %s: %s\n", client->id,
+            "send_multicast", "done");
     free(done_msg);
     return EXIT_FAILURE;
   }
   free(done_msg);
 
-  if ((err = receive_from_all(proc, DONE)) != RCV_ALL_OK) {
-    fprintf(stderr, "error: process %1d: %s\n", proc->id,
+  if ((err = receive_from_all(client, DONE)) != RCV_ALL_OK) {
+    fprintf(stderr, "error: process %1d: %s\n", client->id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_done_fmt, proc->id);
+  flog(log, log_received_all_done_fmt, client->id);
 
   return EXIT_SUCCESS;
 }
@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
   for (local_id id = PARENT_ID + 1; id < procs; id++) {
     pid_t pid = fork();
     if (pid == 0) {
-      Proc proc = {id, store};
-      int status = execute_child(&proc, log);
+      IpcClient client = {id, store};
+      int status = execute_child(&client, log);
 
       free_store(store);
       free_log(log);
@@ -136,23 +136,23 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  Proc proc = {PARENT_ID, store};
-  init_proc(&proc);
+  IpcClient client = {PARENT_ID, store};
+  init_client(&client);
 
   ReceiveAllError err;
-  if ((err = receive_from_all(&proc, STARTED)) != RCV_ALL_OK) {
-    fprintf(stderr, "error: process %1d: %s\n", proc.id,
+  if ((err = receive_from_all(&client, STARTED)) != RCV_ALL_OK) {
+    fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_started_fmt, proc.id);
+  flog(log, log_received_all_started_fmt, client.id);
 
-  if ((err = receive_from_all(&proc, DONE)) != RCV_ALL_OK) {
-    fprintf(stderr, "error: process %1d: %s\n", proc.id,
+  if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
+    fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  flog(log, log_received_all_done_fmt, proc.id);
+  flog(log, log_received_all_done_fmt, client.id);
 
   free_store(store);
   free_log(log);

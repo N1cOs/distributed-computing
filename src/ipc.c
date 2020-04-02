@@ -1,11 +1,11 @@
-#include "proc.h"
+#include "ipc_client.h"
 
 #define SUCCESS 0
 #define FAILED -1
 
-int send(void *procptr, local_id dst, const Message *msg) {
-  Proc *proc = ((Proc *)procptr);
-  Chan *chan = get_chan(proc->store, proc->id, dst);
+int send(void *clientptr, local_id dst, const Message *msg) {
+  IpcClient *client = ((IpcClient *)clientptr);
+  Chan *chan = get_chan(client->store, client->id, dst);
   if (chan == NULL) {
     return FAILED;
   }
@@ -23,12 +23,12 @@ int send(void *procptr, local_id dst, const Message *msg) {
   return SUCCESS;
 }
 
-int send_multicast(void *procptr, const Message *msg) {
-  Proc *proc = ((Proc *)procptr);
-  uint16_t procs = get_procs(proc->store);
+int send_multicast(void *clientptr, const Message *msg) {
+  IpcClient *client = ((IpcClient *)clientptr);
+  uint16_t procs = get_procs(client->store);
   for (uint16_t id = 0; id < procs; id++) {
-    if (id != proc->id) {
-      if (send(proc, id, msg) == FAILED) {
+    if (id != client->id) {
+      if (send(client, id, msg) == FAILED) {
         return FAILED;
       }
     }
@@ -36,9 +36,9 @@ int send_multicast(void *procptr, const Message *msg) {
   return SUCCESS;
 }
 
-int receive(void *procptr, local_id from, Message *msg) {
-  Proc *proc = ((Proc *)procptr);
-  Chan *chan = get_chan(proc->store, from, proc->id);
+int receive(void *clientptr, local_id from, Message *msg) {
+  IpcClient *client = ((IpcClient *)clientptr);
+  Chan *chan = get_chan(client->store, from, client->id);
   if (chan == NULL) {
     return FAILED;
   }
@@ -56,7 +56,7 @@ int receive(void *procptr, local_id from, Message *msg) {
   return SUCCESS;
 }
 
-int receive_any(void *procptr, Message *msg) {
+int receive_any(void *clientptr, Message *msg) {
   // Not implemented because of blocking IO.
   return FAILED;
 }

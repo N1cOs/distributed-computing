@@ -7,7 +7,7 @@
 typedef struct {
   local_id id;
   Store *store;
-} Proc;
+} IpcClient;
 
 typedef enum {
   RCV_ALL_OK = 0,
@@ -15,9 +15,9 @@ typedef enum {
   RCV_ALL_BAD_RESPONSE
 } ReceiveAllError;
 
-void init_proc(Proc *proc);
+void init_client(IpcClient *client);
 
-ReceiveAllError receive_from_all(Proc *proc, MessageType type);
+ReceiveAllError receive_from_all(IpcClient *client, MessageType type);
 
 const char *str_receive_error(ReceiveAllError err);
 

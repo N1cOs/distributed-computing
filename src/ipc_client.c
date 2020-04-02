@@ -1,4 +1,4 @@
-#include "proc.h"
+#include "ipc_client.h"
 
 static const char *err_msgs[] = {
     "ok",
@@ -6,16 +6,18 @@ static const char *err_msgs[] = {
     "received bad message",
 };
 
-void init_proc(Proc *proc) { close_unnes_chans(proc->store, proc->id); }
+void init_client(IpcClient *client) {
+  close_unnes_chans(client->store, client->id);
+}
 
 const char *str_receive_error(ReceiveAllError err) { return err_msgs[err]; }
 
-ReceiveAllError receive_from_all(Proc *proc, MessageType type) {
+ReceiveAllError receive_from_all(IpcClient *client, MessageType type) {
   Message rcv_msg;
-  uint16_t procs = get_procs(proc->store);
+  uint16_t procs = get_procs(client->store);
   for (local_id id = PARENT_ID + 1; id < procs; id++) {
-    if (id != proc->id) {
-      if (receive(proc, id, &rcv_msg) != 0) {
+    if (id != client->id) {
+      if (receive(client, id, &rcv_msg) != 0) {
         return RCV_ALL_TRANSPORT;
       }
 
