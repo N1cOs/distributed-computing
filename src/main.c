@@ -84,6 +84,7 @@ int execute_child(IpcClient* client, Log* log) {
 int main(int argc, char* argv[]) {
   int opt;
   uint16_t procs = 0;
+  balance_t account_money[MAX_PROCS];
   while ((opt = getopt(argc, argv, "p:")) != -1) {
     switch (opt) {
       case 'p':
@@ -92,6 +93,10 @@ int main(int argc, char* argv[]) {
           fprintf(stderr, "%s: %s: %d\n", argv[0],
                   "number of processes can't be more than", MAX_PROCS);
           return EXIT_FAILURE;
+        }
+        for (int i = 0; i < procs; i++) {
+          int acc_balance_arg_idx = i + optind;
+          account_money[i] = strtoul(argv[acc_balance_arg_idx], NULL, 10);
         }
         break;
       default:
