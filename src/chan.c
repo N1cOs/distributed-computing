@@ -26,6 +26,22 @@ ssize_t write_chan(Chan *chan, const void *buf, size_t count) {
 
 int close_chan(Chan *chan) { return close(chan->rfd) || close(chan->wfd); }
 
+int set_block_chan(Chan *chan) {
+  int flags = fcntl(chan->rfd, F_GETFL, 0);
+  if (flags == -1) {
+    return -1;
+  }
+  return fcntl(chan->rfd, F_SETFL, flags & (~O_NONBLOCK));
+}
+
+int set_nonblock_chan(Chan *chan) {
+  int flags = fcntl(chan->rfd, F_GETFL, 0);
+  if (flags == -1) {
+    return -1;
+  }
+  return fcntl(chan->rfd, F_SETFL, flags | O_NONBLOCK);
+}
+
 ChanTable *new_table(uint16_t width, uint16_t height) {
   ChanTable *table = malloc(sizeof(ChanTable));
   table->width = width;
