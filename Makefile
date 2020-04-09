@@ -20,6 +20,8 @@ CC = clang
 BIN = bin
 SRC = src
 INCLUDE = include
+LIB = lib/lib64
+RUNTIME=runtime
 
 PA := pa
 OUT = $(BIN)/$(PA)
@@ -31,19 +33,21 @@ build:
 		--pedantic \
 		--output $(OUT) \
 		$(if $(DEBUG),--debug,) \
-		--include-directory $(INCLUDE) $(SRC)/*.c 
+		--include-directory $(INCLUDE) \
+		--library-directory $(LIB) \
+		-l $(RUNTIME) $(SRC)/*.c 
 
 
 .PHONY: run
 run:
-	@$(OUT) $(ARGS)
+	@LD_LIBRARY_PATH=$(LIB) $(OUT) $(ARGS)
 
 
 VALGRIND = valgrind
 
 .PHONY: memcheck
 memcheck: build
-	$(VALGRIND) --leak-check=yes $(OUT) $(ARGS)
+	LD_LIBRARY_PATH=$(LIB) $(VALGRIND) --leak-check=yes $(OUT) $(ARGS)
 
 
 EVENTS_LOG = events.log
