@@ -10,6 +10,9 @@
 
 #define MAX_PROCS 10
 
+void transfer(void* bank_client, local_id src, local_id dst, balance_t amount) {
+}
+
 char* build_msg(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -85,18 +88,27 @@ int main(int argc, char* argv[]) {
   int opt;
   uint16_t procs = 0;
   balance_t account_money[MAX_PROCS];
+
   while ((opt = getopt(argc, argv, "p:")) != -1) {
     switch (opt) {
       case 'p':
         procs = strtoul(optarg, NULL, 10);
+
         if (procs > MAX_PROCS) {
           fprintf(stderr, "%s: %s: %d\n", argv[0],
                   "number of processes can't be more than", MAX_PROCS);
           return EXIT_FAILURE;
         }
+
+        if (argc != procs + optind) {
+          fprintf(stderr, "%s\n",
+                  "amount of balance records should be equal to the amount of "
+                  "bank branches");
+          return EXIT_FAILURE;
+        }
+
         for (int i = 0; i < procs; i++) {
-          int acc_balance_arg_idx = i + optind;
-          account_money[i] = strtoul(argv[acc_balance_arg_idx], NULL, 10);
+          account_money[i] = strtoul(argv[i + optind], NULL, 10);
         }
         break;
       default:
