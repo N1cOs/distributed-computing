@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "bank_client.h"
 #include "banking.h"
 #include "common.h"
 #include "ipc_client.h"
@@ -9,9 +10,6 @@
 #include "pa2345.h"
 
 #define MAX_PROCS 10
-
-void transfer(void* bank_client, local_id src, local_id dst, balance_t amount) {
-}
 
 char* build_msg(const char* fmt, ...) {
   va_list args;
@@ -163,14 +161,32 @@ int main(int argc, char* argv[]) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_started_fmt, client.id);
+  logfmt(log, log_received_all_started_fmt, get_physical_time(), client.id);
+
+  BankClient bank_client = {&client, PARENT_ID};
+  bank_robbery(&bank_client, procs);
+
+  MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_physical_time()};
+  Message msg = {header};
+
+  if (send_multicast(&client, &msg) != 0) {
+    fprintf(stderr, "error: process %1d: %s: %s\n", client.id, "send_multicast",
+            "STOP");
+    return EXIT_FAILURE;
+  }
 
   if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
     fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_done_fmt, client.id);
+  logfmt(log, log_received_all_done_fmt, get_physical_time(), client.id);
+
+  if ((err = receive_from_all(&client, BALANCE_HISTORY)) != RCV_ALL_OK) {
+    fprintf(stderr, "error: process %1d: %s\n", client.id,
+            str_receive_error(err));
+    return EXIT_FAILURE;
+  }
 
   free_store(store);
   free_log(log);
