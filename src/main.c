@@ -131,11 +131,29 @@ int main(int argc, char* argv[]) {
   }
   logfmt(log, log_received_all_done_fmt, get_physical_time(), client.id);
 
-  if ((err = receive_from_all(&client, BALANCE_HISTORY)) != RCV_ALL_OK) {
-    fprintf(stderr, "error: process %1d: %s\n", client.id,
-            str_receive_error(err));
-    return EXIT_FAILURE;
+  AllHistory history;
+  history.s_history_len = procs;
+
+  Message rcv_msg;
+  for (local_id id = PARENT_ID + 1; id <= procs; id++) {
+    if (receive(&client, id, &rcv_msg) != 0) {
+      fprintf(stderr, "error: process %1d while receiving from %1d\n",
+              client.id, id);
+      return EXIT_FAILURE;
+    }
+
+    MessageHeader hdr = rcv_msg.s_header;
+    if (hdr.s_magic != MESSAGE_MAGIC && hdr.s_type != BALANCE_HISTORY) {
+      fprintf(stderr,
+              "error: process %1d while receiving balance history from %1d\n",
+              client.id, id);
+      return EXIT_FAILURE;
+    }
+
+    memcpy(&history.s_history[id - 1], rcv_msg.s_payload, hdr.s_payload_len);
   }
+
+  print_history(&history);
 
   free_store(store);
   free_log(log);
