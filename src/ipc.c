@@ -1,4 +1,7 @@
+#define _POSIX_C_SOURCE 200112L
+
 #include <errno.h>
+#include <time.h>
 #include "ipc_client.h"
 
 #define SUCCESS 0
@@ -39,6 +42,10 @@ int receive(void *clientptr, local_id from, Message *msg) {
     return FAILED;
   }
 
+  if (set_block_chan(chan) != 0) {
+    return FAILED;
+  }
+
   size_t n;
   size_t size = sizeof(MessageHeader);
   if ((n = read_chan(chan, &msg->s_header, size)) != size) {
@@ -47,6 +54,10 @@ int receive(void *clientptr, local_id from, Message *msg) {
 
   size = msg->s_header.s_payload_len;
   if ((n = read_chan(chan, msg->s_payload, size)) != size) {
+    return FAILED;
+  }
+
+  if (set_nonblock_chan(chan) != 0) {
     return FAILED;
   }
   return SUCCESS;
@@ -60,39 +71,30 @@ int receive_any(void *clientptr, Message *msg) {
   for (int i = 0; i < procs; i++) {
     if (i != client->id) {
       chans[i] = get_chan(client->store, i, client->id);
-      if (set_nonblock_chan(chans[i]) == -1) {
-        return FAILED;
-      }
     }
   }
 
+  struct timespec ts = {.tv_nsec = 10000};
   for (int i = 0;; i = (i + 1) % procs) {
     if (i != client->id) {
       Chan *chan = chans[i];
       size_t size = sizeof(MessageHeader);
 
-      size_t n = read_chan(chan, &msg->s_header, size);
+      ssize_t n = read_chan(chan, &msg->s_header, size);
       if (n != size) {
         if (errno != EAGAIN) {
           return FAILED;
         }
-        usleep(1);
+        nanosleep(&ts, NULL);
         continue;
       }
 
       size = msg->s_header.s_payload_len;
-      if (read_chan(chan, msg->s_payload, size) != size) {
+      n = read_chan(chan, msg->s_payload, size);
+      if (n != size) {
         return FAILED;
       }
       break;
-    }
-  }
-
-  for (int i = 0; i < procs; i++) {
-    if (i != client->id) {
-      if (set_block_chan(chans[i]) == -1) {
-        return FAILED;
-      }
     }
   }
   return SUCCESS;
