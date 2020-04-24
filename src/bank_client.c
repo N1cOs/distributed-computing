@@ -27,8 +27,9 @@ void transfer(void* bank_client_ptr, local_id src, local_id dst,
     return;
   }
 
-  if (header.s_type != ACK) {
-    fprintf(stderr, "error: bad type from process %1d: expected ACK type\n", dst);
+  if (msg.s_header.s_type != ACK) {
+    fprintf(stderr, "error: bad type from process %1d: expected ACK type\n",
+            dst);
     return;
   }
 }
