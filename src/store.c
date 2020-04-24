@@ -1,4 +1,5 @@
 #include "store.h"
+#include <fcntl.h>
 
 Store* new_store(uint16_t procs) {
   ChanTable* table = new_table(procs, procs);
@@ -7,8 +8,19 @@ Store* new_store(uint16_t procs) {
       if (i != j) {
         int pipefd[2];
         if (pipe(pipefd) != 0) {
-          free_table(table);
           return NULL;
+        }
+
+        int fd, flags;
+        for (int i = 0; i < 2; i++) {
+          fd = pipefd[i];
+          flags = fcntl(fd, F_GETFL, 0);
+          if (flags == -1) {
+            return NULL;
+          }
+          if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+            return NULL;
+          }
         }
 
         Chan chan = {.rfd = pipefd[0], .wfd = pipefd[1]};
