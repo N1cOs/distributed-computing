@@ -23,8 +23,9 @@ static void _append_balance_state(BalanceHistory *history, BalanceState state) {
   uint8_t len = history->s_history_len;
   if (len > 0) {
     BalanceState prev = history->s_history[len - 1];
-    timestamp_t elapsed = state.s_time - prev.s_time - 1;
+    timestamp_t elapsed = (state.s_time - prev.s_time - 1);
     for (int i = 0; i < elapsed; i++) {
+      prev.s_time++;
       history->s_history[len + i] = prev;
     }
     len += elapsed;
@@ -118,23 +119,23 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
         if (order->s_src == branch->id) {
           _update_history(branch->history, -order->s_amount);
 
-          header.s_local_time = get_physical_time();
+          msg.s_header.s_local_time = get_physical_time();
           if (send(branch->client, order->s_dst, &msg) != 0) {
             fprintf(stderr, "error: branch %1d: %s: %s\n", branch->id, "send",
                     "transfer");
             return EXIT_FAILURE;
           }
-          logfmt(log, log_transfer_out_fmt, header.s_local_time, order->s_src,
-                 order->s_amount, order->s_dst);
+          logfmt(log, log_transfer_out_fmt, msg.s_header.s_local_time,
+                 order->s_src, order->s_amount, order->s_dst);
         } else if (order->s_dst == branch->id) {
           BalanceState state =
               _update_history(branch->history, order->s_amount);
           logfmt(log, log_transfer_in_fmt, state.s_time, order->s_dst,
                  order->s_amount, order->s_src);
 
-          header.s_type = ACK;
-          header.s_payload_len = 0;
-          header.s_local_time = get_physical_time();
+          msg.s_header.s_type = ACK;
+          msg.s_header.s_payload_len = 0;
+          msg.s_header.s_local_time = get_physical_time();
           if (send(branch->client, PARENT_ID, &msg) != 0) {
             fprintf(stderr, "error: branch %1d: %s: %s\n", branch->id, "send",
                     "ack");
@@ -157,6 +158,8 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
   }
 
   timestamp_t done_time = get_physical_time();
+  _update_history(branch->history, 0);
+
   balance_t done_balance = _get_current_state(branch->history).s_balance;
   char *done_str =
       _build_msg(log_done_fmt, done_time, branch->id, done_balance);
