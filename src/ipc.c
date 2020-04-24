@@ -11,13 +11,8 @@ int send(void *clientptr, local_id dst, const Message *msg) {
   }
 
   size_t n;
-  size_t size = sizeof(MessageHeader);
-  if ((n = write_chan(chan, &msg->s_header, size)) != size) {
-    return FAILED;
-  }
-
-  size = msg->s_header.s_payload_len;
-  if ((n = write_chan(chan, msg->s_payload, size)) != size) {
+  size_t size = sizeof(MessageHeader) + msg->s_header.s_payload_len;
+  if ((n = write_chan(chan, msg, size)) != size) {
     return FAILED;
   }
   return SUCCESS;
