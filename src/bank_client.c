@@ -9,8 +9,9 @@ void transfer(void* bank_client_ptr, local_id src, local_id dst,
 
   TransferOrder transfer_order = {src, dst, amount};
 
+  increment_lamprot_time();
   MessageHeader header = {MESSAGE_MAGIC, transfer_order_size, TRANSFER,
-                          get_physical_time()};
+                          get_lamport_time()};
   Message msg = {header};
   memcpy(msg.s_payload, &transfer_order, transfer_order_size);
 
@@ -32,4 +33,5 @@ void transfer(void* bank_client_ptr, local_id src, local_id dst,
             dst);
     return;
   }
+  align_lamport_time(msg.s_header.s_local_time);
 }

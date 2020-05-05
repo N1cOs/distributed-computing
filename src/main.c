@@ -110,12 +110,13 @@ int main(int argc, char* argv[]) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_started_fmt, get_physical_time(), client.id);
+  logfmt(log, log_received_all_started_fmt, get_lamport_time(), client.id);
 
   BankClient bank_client = {&client, PARENT_ID};
   bank_robbery(&bank_client, procs);
 
-  MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_physical_time()};
+  increment_lamprot_time();
+  MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_lamport_time()};
   Message msg = {header};
 
   if (send_multicast(&client, &msg) != 0) {
@@ -129,7 +130,7 @@ int main(int argc, char* argv[]) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_done_fmt, get_physical_time(), client.id);
+  logfmt(log, log_received_all_done_fmt, get_lamport_time(), client.id);
 
   AllHistory history;
   history.s_history_len = procs;
@@ -149,6 +150,7 @@ int main(int argc, char* argv[]) {
               client.id, id);
       return EXIT_FAILURE;
     }
+    align_lamport_time(hdr.s_local_time);
 
     memcpy(&history.s_history[id - 1], rcv_msg.s_payload, hdr.s_payload_len);
   }

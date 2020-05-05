@@ -39,11 +39,19 @@ static BalanceState _get_current_state(BalanceHistory *history) {
   return history->s_history[len - 1];
 }
 
-static BalanceState _update_history(BalanceHistory *history, balance_t delta) {
+static BalanceState _update_history(BalanceHistory *history, balance_t delta,
+                                    timestamp_t msg_time) {
   BalanceState new_state = _get_current_state(history);
-  new_state.s_time = get_physical_time();
+  new_state.s_time = get_lamport_time();
   new_state.s_balance += delta;
+
   _append_balance_state(history, new_state);
+  if (delta > 0) {
+    for (int i = msg_time; i < history->s_history_len - 1; i++) {
+      history->s_history[i].s_balance_pending_in = delta;
+    }
+  }
+
   return new_state;
 }
 
@@ -84,11 +92,13 @@ BankBranch *new_bank_branch(local_id id, Store *store) {
 int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
   init_client(branch->client);
 
-  timestamp_t start_time = get_physical_time();
+  timestamp_t start_time = get_lamport_time();
   BalanceState start_state = {
       .s_balance = balance, .s_time = start_time, .s_balance_pending_in = 0};
   _append_balance_state(branch->history, start_state);
 
+  increment_lamprot_time();
+  start_time = get_lamport_time();
   char *start_str = _build_msg(log_started_fmt, start_time, branch->id,
                                getpid(), getppid(), balance);
   logfmt(log, start_str);
@@ -102,7 +112,7 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
     return EXIT_FAILURE;
   }
   free(start_str);
-  logfmt(log, log_received_all_started_fmt, get_physical_time(), branch->id);
+  logfmt(log, log_received_all_started_fmt, get_lamport_time(), branch->id);
 
   MessageHeader header = {MESSAGE_MAGIC, 0, STARTED, 0};
   Message msg = {header};
@@ -112,14 +122,18 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
               "transport");
       return EXIT_FAILURE;
     }
+    align_lamport_time(msg.s_header.s_local_time);
 
     switch (msg.s_header.s_type) {
       case TRANSFER: {
+        increment_lamprot_time();
+
         TransferOrder *order = (TransferOrder *)msg.s_payload;
         if (order->s_src == branch->id) {
-          _update_history(branch->history, -order->s_amount);
+          _update_history(branch->history, -order->s_amount,
+                          msg.s_header.s_local_time);
 
-          msg.s_header.s_local_time = get_physical_time();
+          msg.s_header.s_local_time = get_lamport_time();
           if (send(branch->client, order->s_dst, &msg) != 0) {
             fprintf(stderr, "error: branch %1d: %s: %s\n", branch->id, "send",
                     "transfer");
@@ -128,14 +142,14 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
           logfmt(log, log_transfer_out_fmt, msg.s_header.s_local_time,
                  order->s_src, order->s_amount, order->s_dst);
         } else if (order->s_dst == branch->id) {
-          BalanceState state =
-              _update_history(branch->history, order->s_amount);
+          BalanceState state = _update_history(branch->history, order->s_amount,
+                                               msg.s_header.s_local_time);
           logfmt(log, log_transfer_in_fmt, state.s_time, order->s_dst,
                  order->s_amount, order->s_src);
 
           msg.s_header.s_type = ACK;
           msg.s_header.s_payload_len = 0;
-          msg.s_header.s_local_time = get_physical_time();
+          msg.s_header.s_local_time = get_lamport_time();
           if (send(branch->client, PARENT_ID, &msg) != 0) {
             fprintf(stderr, "error: branch %1d: %s: %s\n", branch->id, "send",
                     "ack");
@@ -157,8 +171,9 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
     }
   }
 
-  timestamp_t done_time = get_physical_time();
-  _update_history(branch->history, 0);
+  increment_lamprot_time();
+  timestamp_t done_time = get_lamport_time();
+  _update_history(branch->history, 0, done_time);
 
   balance_t done_balance = _get_current_state(branch->history).s_balance;
   char *done_str =
@@ -174,12 +189,13 @@ int start_bank_branch(BankBranch *branch, balance_t balance, Log *log) {
     return EXIT_FAILURE;
   }
   free(done_str);
-  logfmt(log, log_received_all_done_fmt, get_physical_time(), branch->id);
+  logfmt(log, log_received_all_done_fmt, get_lamport_time(), branch->id);
 
+  increment_lamprot_time();
   MessageHeader balance_header;
   balance_header.s_magic = MESSAGE_MAGIC;
   balance_header.s_type = BALANCE_HISTORY;
-  balance_header.s_local_time = get_physical_time();
+  balance_header.s_local_time = get_lamport_time();
   balance_header.s_payload_len = sizeof(BalanceHistory);
 
   Message balance_msg = {balance_header};
