@@ -1,6 +1,7 @@
 #ifndef __IFMO_DISTRIBUTED_CLASS_PROC__H
 #define __IFMO_DISTRIBUTED_CLASS_PROC__H
 
+#include "clock.h"
 #include "ipc.h"
 #include "store.h"
 
