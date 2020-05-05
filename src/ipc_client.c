@@ -25,6 +25,8 @@ ReceiveAllError receive_from_all(IpcClient *client, MessageType type) {
       if (hdr.s_magic != MESSAGE_MAGIC && hdr.s_type != type) {
         return RCV_ALL_BAD_RESPONSE;
       }
+
+      align_lamport_time(hdr.s_local_time);
     }
   }
   return RCV_ALL_OK;
