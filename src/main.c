@@ -2,10 +2,12 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "child.h"
 #include "common.h"
 #include "ipc_client.h"
 #include "log.h"
 #include "pa2345.h"
+#include "stdbool.h"
 
 #define MAX_PROCS 10
 
@@ -28,12 +30,16 @@ char* build_msg(const char* fmt, ...) {
   return str;
 }
 
+static struct option long_opts[] = {{"mutexl", no_argument, NULL, 'm'}};
+
+static char* short_opts = "p:m";
+
 int main(int argc, char* argv[]) {
   int opt;
   uint16_t procs = 0;
-  balance_t account_money[MAX_PROCS];
+  bool mutexl = false;
 
-  while ((opt = getopt(argc, argv, "p:")) != -1) {
+  while ((opt = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1) {
     switch (opt) {
       case 'p':
         procs = strtoul(optarg, NULL, 10);
@@ -50,19 +56,12 @@ int main(int argc, char* argv[]) {
           return EXIT_FAILURE;
         }
 
-        if (argc != procs + optind) {
-          fprintf(stderr, "%s\n",
-                  "amount of balance records should be equal to the amount of "
-                  "bank branches");
-          return EXIT_FAILURE;
-        }
-
-        for (int i = 0; i < procs; i++) {
-          account_money[i] = strtoul(argv[i + optind], NULL, 10);
-        }
+        break;
+      case 'm':
+        mutexl = true;
         break;
       default:
-        fprintf(stderr, "usage: main -p PROCS_NUM\n");
+        fprintf(stderr, "usage: main -p PROCS_NUM [--mutexl|-m]\n");
         return EXIT_SUCCESS;
     }
   }
