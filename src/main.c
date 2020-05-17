@@ -2,9 +2,6 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "bank_branch.h"
-#include "bank_client.h"
-#include "banking.h"
 #include "common.h"
 #include "ipc_client.h"
 #include "log.h"
@@ -86,15 +83,11 @@ int main(int argc, char* argv[]) {
   for (local_id id = PARENT_ID + 1; id <= procs; id++) {
     pid_t pid = fork();
     if (pid == 0) {
-      BankBranch* branch = new_bank_branch(id, store);
-      int status = start_bank_branch(branch, account_money[id - 1], log);
-
-      free_bank_branch(branch);
       free_store(store);
       free_log(log);
       fclose(eventsf);
 
-      return status;
+      return EXIT_SUCCESS;
     } else if (pid < 0) {
       fprintf(stderr, "%s: %s: %s\n", argv[0], "fork", strerror(errno));
       return EXIT_FAILURE;
@@ -111,9 +104,6 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
   logfmt(log, log_received_all_started_fmt, get_lamport_time(), client.id);
-
-  BankClient bank_client = {&client, PARENT_ID};
-  bank_robbery(&bank_client, procs);
 
   increment_lamprot_time();
   MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_lamport_time()};
