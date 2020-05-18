@@ -23,10 +23,20 @@ void free_priority_queue(PriorityQueue *queue) {
   free(queue);
 }
 
-static void _shift(Tuple *queue, uint16_t start, uint16_t end) {
+static void _shift_right(Tuple *queue, uint16_t start, uint16_t end) {
   Tuple new;
   Tuple prev = queue[start];
   for (uint16_t i = start + 1; i < end; i++) {
+    new = prev;
+    prev = queue[i];
+    queue[i] = new;
+  }
+}
+
+static void _shift_left(Tuple *queue, uint16_t start, uint16_t end) {
+  Tuple new;
+  Tuple prev = queue[end - 1];
+  for (int i = end - 2; i >= start; i--) {
     new = prev;
     prev = queue[i];
     queue[i] = new;
@@ -47,7 +57,7 @@ void add(PriorityQueue *queue, Tuple new) {
     Tuple cur = queue->head[i];
     if (new.time < cur.time || (new.time == cur.time &&new.proc < cur.proc)) {
       last = queue->head[queue->next - 1];
-      _shift(queue->head, i, queue->next);
+      _shift_right(queue->head, i, queue->next);
 
       queue->head[i] = new;
       break;
@@ -59,8 +69,10 @@ void add(PriorityQueue *queue, Tuple new) {
 }
 
 Tuple pop(PriorityQueue *queue) {
+  Tuple head = queue->head[0];
+  _shift_left(queue->head, 0, queue->next);
   queue->next--;
-  return queue->head[queue->next];
+  return head;
 }
 
-Tuple top(PriorityQueue *queue) { return queue->head[queue->next - 1]; }
+Tuple top(PriorityQueue *queue) { return queue->head[0]; }
