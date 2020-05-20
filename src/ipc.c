@@ -94,8 +94,7 @@ int receive_any(void *clientptr, Message *msg) {
       if (n != size) {
         return FAILED;
       }
-      break;
+      return i;
     }
   }
-  return SUCCESS;
 }
