@@ -2,6 +2,7 @@
 #define __IFMO_DISTRIBUTED_CLASS_PRIORITY_QUEUE__H
 
 #include "ipc.h"
+#include "stdbool.h"
 #include "stdlib.h"
 
 typedef struct {
@@ -14,6 +15,8 @@ typedef struct {
   uint16_t next;
   uint16_t capacity;
 } PriorityQueue;
+
+bool equal_tuples(Tuple t1, Tuple t2);
 
 PriorityQueue *new_prioriy_queue(uint16_t capacity);
 

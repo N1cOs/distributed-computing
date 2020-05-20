@@ -1,5 +1,9 @@
 #include "priority_queue.h"
 
+bool equal_tuples(Tuple t1, Tuple t2) {
+  return t1.proc == t2.proc && t1.time == t2.time;
+}
+
 PriorityQueue *new_prioriy_queue(uint16_t capacity) {
   PriorityQueue *queue = malloc(sizeof(PriorityQueue));
   if (queue == NULL) {
