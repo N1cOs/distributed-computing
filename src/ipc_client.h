@@ -3,11 +3,14 @@
 
 #include "clock.h"
 #include "ipc.h"
+#include "pa2345.h"
+#include "priority_queue.h"
 #include "store.h"
 
 typedef struct {
   local_id id;
   Store *store;
+  PriorityQueue *queue;
 } IpcClient;
 
 typedef enum {
