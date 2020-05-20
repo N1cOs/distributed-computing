@@ -2,13 +2,12 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "bank_branch.h"
-#include "bank_client.h"
-#include "banking.h"
+#include "child.h"
 #include "common.h"
 #include "ipc_client.h"
 #include "log.h"
 #include "pa2345.h"
+#include "stdbool.h"
 
 #define MAX_PROCS 10
 
@@ -31,12 +30,17 @@ char* build_msg(const char* fmt, ...) {
   return str;
 }
 
+static struct option long_opts[] = {{"mutexl", no_argument, NULL, 'm'},
+                                    {0, 0, 0, 0}};
+
+static char* short_opts = "p:m";
+
 int main(int argc, char* argv[]) {
   int opt;
   uint16_t procs = 0;
-  balance_t account_money[MAX_PROCS];
+  bool mutexl = false;
 
-  while ((opt = getopt(argc, argv, "p:")) != -1) {
+  while ((opt = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1) {
     switch (opt) {
       case 'p':
         procs = strtoul(optarg, NULL, 10);
@@ -53,19 +57,12 @@ int main(int argc, char* argv[]) {
           return EXIT_FAILURE;
         }
 
-        if (argc != procs + optind) {
-          fprintf(stderr, "%s\n",
-                  "amount of balance records should be equal to the amount of "
-                  "bank branches");
-          return EXIT_FAILURE;
-        }
-
-        for (int i = 0; i < procs; i++) {
-          account_money[i] = strtoul(argv[i + optind], NULL, 10);
-        }
+        break;
+      case 'm':
+        mutexl = true;
         break;
       default:
-        fprintf(stderr, "usage: main -p PROCS_NUM\n");
+        fprintf(stderr, "usage: main -p PROCS_NUM [--mutexl|-m]\n");
         return EXIT_SUCCESS;
     }
   }
@@ -86,15 +83,11 @@ int main(int argc, char* argv[]) {
   for (local_id id = PARENT_ID + 1; id <= procs; id++) {
     pid_t pid = fork();
     if (pid == 0) {
-      BankBranch* branch = new_bank_branch(id, store);
-      int status = start_bank_branch(branch, account_money[id - 1], log);
-
-      free_bank_branch(branch);
       free_store(store);
       free_log(log);
       fclose(eventsf);
 
-      return status;
+      return EXIT_SUCCESS;
     } else if (pid < 0) {
       fprintf(stderr, "%s: %s: %s\n", argv[0], "fork", strerror(errno));
       return EXIT_FAILURE;
@@ -112,50 +105,12 @@ int main(int argc, char* argv[]) {
   }
   logfmt(log, log_received_all_started_fmt, get_lamport_time(), client.id);
 
-  BankClient bank_client = {&client, PARENT_ID};
-  bank_robbery(&bank_client, procs);
-
-  increment_lamprot_time();
-  MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_lamport_time()};
-  Message msg = {header};
-
-  if (send_multicast(&client, &msg) != 0) {
-    fprintf(stderr, "error: process %1d: %s: %s\n", client.id, "send_multicast",
-            "STOP");
-    return EXIT_FAILURE;
-  }
-
   if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
     fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
   logfmt(log, log_received_all_done_fmt, get_lamport_time(), client.id);
-
-  AllHistory history;
-  history.s_history_len = procs;
-
-  Message rcv_msg;
-  for (local_id id = PARENT_ID + 1; id <= procs; id++) {
-    if (receive(&client, id, &rcv_msg) != 0) {
-      fprintf(stderr, "error: process %1d while receiving from %1d\n",
-              client.id, id);
-      return EXIT_FAILURE;
-    }
-
-    MessageHeader hdr = rcv_msg.s_header;
-    if (hdr.s_magic != MESSAGE_MAGIC && hdr.s_type != BALANCE_HISTORY) {
-      fprintf(stderr,
-              "error: process %1d while receiving balance history from %1d\n",
-              client.id, id);
-      return EXIT_FAILURE;
-    }
-    align_lamport_time(hdr.s_local_time);
-
-    memcpy(&history.s_history[id - 1], rcv_msg.s_payload, hdr.s_payload_len);
-  }
-
-  print_history(&history);
 
   free_store(store);
   free_log(log);
