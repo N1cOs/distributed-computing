@@ -1,7 +1,7 @@
 #include "child.h"
 
-int new_child() {}
+Child *new_child(local_id id, Store *store) {}
 
-int exec_child() {}
+int exec_child(Child *child, Log *log, bool mutexl) {}
 
-int free_child() {}
+int free_child(Child *child) {}

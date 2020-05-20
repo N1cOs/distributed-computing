@@ -30,7 +30,8 @@ char* build_msg(const char* fmt, ...) {
   return str;
 }
 
-static struct option long_opts[] = {{"mutexl", no_argument, NULL, 'm'}};
+static struct option long_opts[] = {{"mutexl", no_argument, NULL, 'm'},
+                                    {0, 0, 0, 0}};
 
 static char* short_opts = "p:m";
 
@@ -104,47 +105,12 @@ int main(int argc, char* argv[]) {
   }
   logfmt(log, log_received_all_started_fmt, get_lamport_time(), client.id);
 
-  increment_lamprot_time();
-  MessageHeader header = {MESSAGE_MAGIC, 0, STOP, get_lamport_time()};
-  Message msg = {header};
-
-  if (send_multicast(&client, &msg) != 0) {
-    fprintf(stderr, "error: process %1d: %s: %s\n", client.id, "send_multicast",
-            "STOP");
-    return EXIT_FAILURE;
-  }
-
   if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
     fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
   logfmt(log, log_received_all_done_fmt, get_lamport_time(), client.id);
-
-  AllHistory history;
-  history.s_history_len = procs;
-
-  Message rcv_msg;
-  for (local_id id = PARENT_ID + 1; id <= procs; id++) {
-    if (receive(&client, id, &rcv_msg) != 0) {
-      fprintf(stderr, "error: process %1d while receiving from %1d\n",
-              client.id, id);
-      return EXIT_FAILURE;
-    }
-
-    MessageHeader hdr = rcv_msg.s_header;
-    if (hdr.s_magic != MESSAGE_MAGIC && hdr.s_type != BALANCE_HISTORY) {
-      fprintf(stderr,
-              "error: process %1d while receiving balance history from %1d\n",
-              client.id, id);
-      return EXIT_FAILURE;
-    }
-    align_lamport_time(hdr.s_local_time);
-
-    memcpy(&history.s_history[id - 1], rcv_msg.s_payload, hdr.s_payload_len);
-  }
-
-  print_history(&history);
 
   free_store(store);
   free_log(log);
