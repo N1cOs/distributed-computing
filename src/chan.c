@@ -1,27 +1,11 @@
 #include "chan.h"
 
 ssize_t read_chan(Chan *chan, void *buf, size_t count) {
-  size_t left = count;
-  while (left != 0) {
-    ssize_t n = read(chan->rfd, ((char *)buf) + (count - left), left);
-    if (n < 0) {
-      return count - left;
-    }
-    left -= n;
-  }
-  return count;
+  return read(chan->rfd, ((char *)buf), count);
 }
 
 ssize_t write_chan(Chan *chan, const void *buf, size_t count) {
-  size_t left = count;
-  while (left != 0) {
-    ssize_t n = write(chan->wfd, ((char *)buf) + (count - left), left);
-    if (n < 0) {
-      return count - left;
-    }
-    left -= n;
-  }
-  return count;
+  return write(chan->wfd, ((char *)buf), count);
 }
 
 int close_chan(Chan *chan) { return close(chan->rfd) || close(chan->wfd); }
