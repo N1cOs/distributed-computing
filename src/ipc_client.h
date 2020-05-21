@@ -21,6 +21,8 @@ typedef enum {
 
 void init_client(IpcClient *client);
 
+uint16_t get_left_siblings(IpcClient *client);
+
 ReceiveAllError receive_from_all(IpcClient *client, MessageType type);
 
 const char *str_receive_error(ReceiveAllError err);
