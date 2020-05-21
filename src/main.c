@@ -4,31 +4,9 @@
 #include <sys/wait.h>
 #include "child.h"
 #include "common.h"
-#include "ipc_client.h"
-#include "log.h"
-#include "pa2345.h"
-#include "stdbool.h"
+#include "string.h"
 
 #define MAX_PROCS 10
-
-char* build_msg(const char* fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-
-  int size = vsnprintf(NULL, 0, fmt, args);
-  if (size < 0) {
-    return NULL;
-  }
-  va_end(args);
-
-  char* str = malloc(size + 1);
-  va_start(args, fmt);
-
-  vsnprintf(str, size + 1, fmt, args);
-  va_end(args);
-
-  return str;
-}
 
 static struct option long_opts[] = {{"mutexl", no_argument, NULL, 'm'},
                                     {0, 0, 0, 0}};
@@ -72,7 +50,6 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "%s: %s: %s\n", argv[0], "fopen", strerror(errno));
     return EXIT_FAILURE;
   }
-  Log* log = new_log(2, stdout, eventsf);
 
   Store* store = new_store(procs + 1);
   if (store == NULL) {
@@ -83,11 +60,14 @@ int main(int argc, char* argv[]) {
   for (local_id id = PARENT_ID + 1; id <= procs; id++) {
     pid_t pid = fork();
     if (pid == 0) {
+      Child* child = new_child(id, store);
+      int status = exec_child(child, mutexl);
+
+      free_child(child);
       free_store(store);
-      free_log(log);
       fclose(eventsf);
 
-      return EXIT_SUCCESS;
+      return status;
     } else if (pid < 0) {
       fprintf(stderr, "%s: %s: %s\n", argv[0], "fork", strerror(errno));
       return EXIT_FAILURE;
@@ -103,17 +83,14 @@ int main(int argc, char* argv[]) {
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_started_fmt, get_lamport_time(), client.id);
 
   if ((err = receive_from_all(&client, DONE)) != RCV_ALL_OK) {
     fprintf(stderr, "error: process %1d: %s\n", client.id,
             str_receive_error(err));
     return EXIT_FAILURE;
   }
-  logfmt(log, log_received_all_done_fmt, get_lamport_time(), client.id);
 
   free_store(store);
-  free_log(log);
   fclose(eventsf);
 
   int status = 0;
