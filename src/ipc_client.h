@@ -4,14 +4,18 @@
 #include "clock.h"
 #include "ipc.h"
 #include "pa2345.h"
-#include "priority_queue.h"
+#include "stdbool.h"
 #include "store.h"
 
 typedef struct {
   local_id id;
   Store *store;
-  PriorityQueue *queue;
 } IpcClient;
+
+typedef struct {
+  timestamp_t time;
+  local_id proc;
+} Tuple;
 
 typedef enum {
   RCV_ALL_OK = 0,
