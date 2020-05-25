@@ -8,6 +8,8 @@ static const char *err_msgs[] = {
 
 static bool _left_siblings[MAX_PROCESS_ID];
 
+static bool _defered_reply[MAX_PROCESS_ID];
+
 static uint16_t _get_count(bool arr[], uint16_t size) {
   uint16_t left = 0;
   for (uint16_t id = 0; id < size; id++) {
@@ -36,7 +38,6 @@ int request_cs(const void *clientptr) {
 
   increment_lamprot_time();
   Tuple req = {get_lamport_time(), client->id};
-  add(client->queue, req);
 
   MessageHeader header = {MESSAGE_MAGIC, 0, CS_REQUEST, req.time};
   Message msg = {header};
@@ -55,8 +56,7 @@ int request_cs(const void *clientptr) {
     left_reply[id] = _left_siblings[id];
   }
 
-  while (_get_count(left_reply, procs) != 0 ||
-         !equal_tuples(req, top(client->queue))) {
+  while (_get_count(left_reply, procs) != 0) {
     local_id id;
     if ((id = receive_any(client, &msg)) == -1) {
       return -1;
@@ -69,21 +69,22 @@ int request_cs(const void *clientptr) {
         break;
       case CS_REQUEST: {
         Tuple rcvd = {msg.s_header.s_local_time, id};
-        add(client->queue, rcvd);
 
-        increment_lamprot_time();
-        MessageHeader reply_hdr = {MESSAGE_MAGIC, 0, CS_REPLY,
-                                   get_lamport_time()};
-        Message reply_msg = {reply_hdr};
+        if (rcvd.time < req.time ||
+            (rcvd.time == req.time && rcvd.proc < req.proc)) {
+          increment_lamprot_time();
+          MessageHeader reply_hdr = {MESSAGE_MAGIC, 0, CS_REPLY,
+                                     get_lamport_time()};
+          Message reply_msg = {reply_hdr};
 
-        if (send(client, id, &reply_msg) != 0) {
-          return -1;
+          if (send(client, id, &reply_msg) != 0) {
+            return -1;
+          }
+        } else {
+          _defered_reply[id] = true;
         }
         break;
       }
-      case CS_RELEASE:
-        pop(client->queue);
-        break;
       case DONE:
         if (left_reply[id]) {
           left_reply[id] = false;
@@ -99,17 +100,17 @@ int request_cs(const void *clientptr) {
 
 int release_cs(const void *clientptr) {
   IpcClient *client = (IpcClient *)clientptr;
-  pop(client->queue);
 
   increment_lamprot_time();
-  MessageHeader hdr = {MESSAGE_MAGIC, 0, CS_RELEASE, get_lamport_time()};
+  MessageHeader hdr = {MESSAGE_MAGIC, 0, CS_REPLY, get_lamport_time()};
   Message msg = {hdr};
 
   for (local_id id = PARENT_ID + 1; id < get_procs(client->store); id++) {
-    if (_left_siblings[id]) {
+    if (_left_siblings[id] && _defered_reply[id]) {
       if (send(client, id, &msg) != 0) {
         return -1;
       }
+      _defered_reply[id] = false;
     }
   }
   return 0;
