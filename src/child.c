@@ -45,7 +45,6 @@ Child *new_child(local_id id, Store *store) {
   IpcClient *client = malloc(sizeof(IpcClient));
   client->id = id;
   client->store = store;
-  client->queue = new_prioriy_queue(16);
 
   Child *child = malloc(sizeof(Child));
   child->id = id;
@@ -102,7 +101,6 @@ int exec_child(Child *child, bool mutexl) {
 }
 
 void free_child(Child *child) {
-  free_priority_queue(child->client->queue);
   free(child->client);
   free(child);
 }
